@@ -7,6 +7,12 @@ struct RecordView: View {
     @State private var pulseScale: CGFloat = 1.0
     @State private var recentStories: [Story] = []
 
+    // Live image generation
+    @State private var liveImage: UIImage?
+    @State private var imageOpacity: Double = 0
+    @State private var nextGenerationThreshold = 100
+    @State private var activeGenerationTask: Task<Void, Never>?
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -29,9 +35,12 @@ struct RecordView: View {
             #endif
         }
         .task { await loadRecentStories() }
+        .onChange(of: recognizer.transcript) { _, newValue in
+            scheduleGeneration(for: newValue)
+        }
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(isPresented: $navigateToEdit) {
-            EditGenerateView(transcript: recognizer.transcript)
+            EditGenerateView(transcript: recognizer.transcript, previewImage: liveImage)
         }
         .alert("Microphone Access Required", isPresented: $recognizer.permissionDenied) {
             Button("Settings") {
@@ -67,6 +76,18 @@ struct RecordView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
+
+            if let liveImage {
+                Image(uiImage: liveImage)
+                    .resizable()
+                    .scaledToFill()
+                    .opacity(imageOpacity)
+                    .transition(.opacity)
+            }
+
+            // Scrim so mic button stays readable over the image
+            Color.black.opacity(liveImage != nil ? 0.45 : 0)
+                .animation(.easeInOut(duration: 0.6), value: liveImage != nil)
 
             VStack(spacing: 12) {
                 VStack(spacing: 4) {
@@ -125,43 +146,39 @@ struct RecordView: View {
     }
 
     private var promptSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        Group {
             if recognizer.transcript.isEmpty {
                 Text("Your story will appear here…")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.25))
                     .italic()
+                    .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                Text(recognizer.transcript)
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.85))
-                    .lineLimit(4)
-                    .multilineTextAlignment(.leading)
-                    .transition(.opacity)
-
-                Button {
-                    navigateToEdit = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Text("Continue")
-                        Image(systemName: "arrow.right")
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        Text(recognizer.transcript)
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.85))
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .id("transcriptBottom")
                     }
-                    .font(.subheadline.bold())
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 10)
-                    .background(Capsule().fill(LinearGradient.storyPurple))
-                    .shadow(color: Color(hex: "7C3AED").opacity(0.4), radius: 8)
+                    .frame(maxHeight: 110)
+                    .scrollIndicators(.hidden)
+                    .onChange(of: recognizer.transcript) { _, _ in
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            proxy.scrollTo("transcriptBottom", anchor: .bottom)
+                        }
+                    }
                 }
             }
         }
-        .animation(.spring(duration: 0.4), value: recognizer.transcript.isEmpty)
+        .animation(.easeInOut(duration: 0.2), value: recognizer.transcript.isEmpty)
         .padding(.horizontal, 14)
         .padding(.vertical, 14)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: - Recent stories section
+    // MARK: - Recent stories
 
     private var recentStoriesSection: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -182,12 +199,45 @@ struct RecordView: View {
         }
     }
 
+    // MARK: - Live image generation
+
+    private func scheduleGeneration(for transcript: String) {
+        guard transcript.count >= nextGenerationThreshold else { return }
+        nextGenerationThreshold = ((transcript.count / 100) + 1) * 100
+
+        activeGenerationTask?.cancel()
+        activeGenerationTask = Task {
+            guard let image = try? await ImageService.generateImage(from: transcript),
+                  !Task.isCancelled else { return }
+            await revealImage(image)
+        }
+    }
+
+    @MainActor
+    private func revealImage(_ image: UIImage) async {
+        if liveImage != nil {
+            withAnimation(.easeOut(duration: 0.4)) { imageOpacity = 0 }
+            try? await Task.sleep(for: .milliseconds(450))
+            guard !Task.isCancelled else { return }
+        }
+        liveImage = image
+        withAnimation(.easeIn(duration: 1.5)) { imageOpacity = 1 }
+    }
+
     // MARK: - Helpers
 
     private func toggleRecording() {
         if recognizer.isRecording {
+            activeGenerationTask?.cancel()
             recognizer.stopRecording()
+            if !recognizer.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                navigateToEdit = true
+            }
         } else {
+            recognizer.transcript = ""
+            liveImage = nil
+            imageOpacity = 0
+            nextGenerationThreshold = 100
             try? recognizer.startRecording()
         }
     }

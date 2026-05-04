@@ -4,7 +4,13 @@ import FirebaseStorage
 import UIKit
 
 struct StorageService {
-    private static let storiesRef = Storage.storage().reference().child("stories")
+    private static var deviceID: String {
+        UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
+    }
+
+    private static var storiesRef: StorageReference {
+        Storage.storage().reference().child("stories/\(deviceID)")
+    }
 
     static func upload(image: UIImage, prompt: String) async throws -> Story {
         let id = UUID().uuidString

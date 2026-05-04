@@ -3,10 +3,15 @@ import SwiftUI
 #if canImport(UIKit)
 struct EditGenerateView: View {
     @State var transcript: String
-    @State private var isGenerating = false
     @State private var generatedImage: UIImage?
+    @State private var isGenerating = false
     @State private var errorMessage: String?
     @State private var navigateToResult = false
+
+    init(transcript: String, previewImage: UIImage? = nil) {
+        _transcript = State(initialValue: transcript)
+        _generatedImage = State(initialValue: previewImage)
+    }
 
     var body: some View {
         ZStack {
@@ -20,6 +25,10 @@ struct EditGenerateView: View {
                 Text("Edit your story before generating the image.")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.5))
+
+                if let generatedImage {
+                    imagePreview(generatedImage)
+                }
 
                 TextEditor(text: $transcript)
                     .scrollContentBackground(.hidden)
@@ -41,7 +50,7 @@ struct EditGenerateView: View {
                         .frame(maxWidth: .infinity)
                 }
 
-                generateButton
+                actionButtons
             }
             .padding(24)
         }
@@ -53,36 +62,67 @@ struct EditGenerateView: View {
         }
     }
 
-    private var generateButton: some View {
-        Button {
-            generateImage()
-        } label: {
-            HStack(spacing: 10) {
-                if isGenerating {
-                    ProgressView().tint(.white)
-                    Text("Generating…")
-                } else {
-                    Image(systemName: "wand.and.stars")
-                    Text("Generate Image")
-                }
-            }
-            .font(.headline)
-            .foregroundStyle(.white)
+    private func imagePreview(_ image: UIImage) -> some View {
+        Image(uiImage: image)
+            .resizable()
+            .scaledToFill()
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(canGenerate
-                          ? AnyShapeStyle(LinearGradient.storyPurple)
-                          : AnyShapeStyle(Color.white.opacity(0.12)))
-            )
-            .shadow(color: canGenerate ? Color(hex: "7C3AED").opacity(0.4) : .clear, radius: 12)
-        }
-        .disabled(!canGenerate)
-        .animation(.easeInOut(duration: 0.2), value: canGenerate)
+            .aspectRatio(16 / 9, contentMode: .fill)
+            .clipped()
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .transition(.opacity.combined(with: .scale(scale: 0.97)))
     }
 
-    private var canGenerate: Bool { !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isGenerating }
+    @ViewBuilder
+    private var actionButtons: some View {
+        VStack(spacing: 10) {
+            if generatedImage != nil {
+                Button { navigateToResult = true } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle")
+                        Text("Use this image")
+                    }
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(LinearGradient.storyPurple)
+                    )
+                    .shadow(color: Color(hex: "7C3AED").opacity(0.4), radius: 12)
+                }
+            }
+
+            Button { generateImage() } label: {
+                HStack(spacing: 10) {
+                    if isGenerating {
+                        ProgressView().tint(.white)
+                        Text("Generating…")
+                    } else {
+                        Image(systemName: "wand.and.stars")
+                        Text(generatedImage != nil ? "Regenerate" : "Generate Image")
+                    }
+                }
+                .font(.headline)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(canGenerate
+                              ? AnyShapeStyle(Color.white.opacity(0.12))
+                              : AnyShapeStyle(Color.white.opacity(0.06)))
+                )
+            }
+            .disabled(!canGenerate)
+        }
+        .animation(.easeInOut(duration: 0.2), value: generatedImage != nil)
+    }
+
+    private var canGenerate: Bool {
+        !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isGenerating
+    }
 
     private func generateImage() {
         isGenerating = true
@@ -90,7 +130,9 @@ struct EditGenerateView: View {
         Task {
             do {
                 let image = try await ImageService.generateImage(from: transcript)
-                generatedImage = image
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    generatedImage = image
+                }
                 navigateToResult = true
             } catch {
                 errorMessage = error.localizedDescription
@@ -102,7 +144,7 @@ struct EditGenerateView: View {
 
 #Preview {
     NavigationStack {
-        EditGenerateView(transcript: "A brave knight rides through an enchanted forest at dusk, lantern glowing.")
+        EditGenerateView(transcript: "A brave knight rides through an enchanted forest at dusk.")
     }
 }
 #endif
