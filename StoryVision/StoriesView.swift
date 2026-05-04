@@ -89,7 +89,7 @@ struct StoryThumbnail: View {
     let story: Story
 
     var body: some View {
-        AsyncImage(url: story.imageURL) { phase in
+        AsyncImage(url: story.thumbnailURL) { phase in
             switch phase {
             case .success(let image):
                 image.resizable().scaledToFill()

@@ -101,7 +101,13 @@ struct ResultView: View {
 
     private func uploadToFirebase() async {
         do {
-            _ = try await StorageService.upload(image: image, prompt: prompt)
+            _ = try await StorageService.uploadImage(
+                image: image,
+                storyID: UUID().uuidString,
+                prompt: prompt,
+                storyCreatedAt: Date(),
+                index: 0
+            )
             withAnimation { uploadState = .done }
         } catch {
             withAnimation { uploadState = .failed }

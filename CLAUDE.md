@@ -37,7 +37,7 @@ StoryVision/
 ## Key Technical Decisions
 
 ### Live Image Generation
-`RecordView` uses `.task(id: recognizer.transcript.count / 100)` — SwiftUI restarts the task every time the transcript crosses a new 100-character boundary. The prompt is snapshotted at task start so in-flight generation always uses the text at the threshold, not a later version. `revealImage(_:)` is synchronous (using `DispatchQueue.main.asyncAfter`) to avoid task-cancellation edge cases.
+`RecordView` uses `.task(id: wordCount(recognizer.transcript) / 20)` — SwiftUI restarts the task every time the cumulative word count crosses a new 20-word boundary. The full transcript up to that point is used as the prompt, so each successive image contains more story context. On completion, `revealImage(_:)` cross-fades to the new image and presents it as a full-screen overlay via `isOverlayVisible`. The overlay includes a pulsing "Listening…" pill and a stop button; on stop, the overlay fades out before navigation to `EditGenerateView`.
 
 ### Speech Recognition
 `SpeechRecognizer` is `@Observable` and wraps `SFSpeechRecognizer` + `AVAudioEngine`. `AVAudioSession` category setup is skipped on simulator (`#if !targetEnvironment(simulator)`) because the simulator routes audio through CoreAudio directly. The tap is installed with `format: nil` so `AVAudioEngine` picks the native format rather than an invalid one from `outputFormat(forBus:)`.

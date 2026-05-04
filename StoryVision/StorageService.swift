@@ -12,9 +12,16 @@ struct StorageService {
         Storage.storage().reference().child("stories/\(deviceID)")
     }
 
-    static func upload(image: UIImage, prompt: String) async throws -> Story {
-        let id = UUID().uuidString
-        let ref = storiesRef.child("\(id).jpg")
+    // Upload one image as part of a story. index determines sort order (00, 01, …).
+    static func uploadImage(
+        image: UIImage,
+        storyID: String,
+        prompt: String,
+        storyCreatedAt: Date,
+        index: Int
+    ) async throws -> URL {
+        let filename = String(format: "%02d.jpg", index)
+        let ref = storiesRef.child("\(storyID)/\(filename)")
 
         guard let data = image.jpegData(compressionQuality: 0.85) else {
             throw StorageServiceError.compressionFailed
@@ -24,30 +31,37 @@ struct StorageService {
         metadata.contentType = "image/jpeg"
         metadata.customMetadata = [
             "prompt": prompt,
-            "createdAt": ISO8601DateFormatter().string(from: Date())
+            "createdAt": ISO8601DateFormatter().string(from: storyCreatedAt)
         ]
 
         _ = try await ref.putDataAsync(data, metadata: metadata)
-        let url = try await ref.downloadURL()
-
-        return Story(id: id, prompt: prompt, imageURL: url, createdAt: Date())
+        return try await ref.downloadURL()
     }
 
     static func fetchAllStories() async throws -> [Story] {
         let result = try await storiesRef.listAll()
 
         var stories: [Story] = []
-        for item in result.items {
-            async let metadataTask = item.getMetadata()
-            async let urlTask = item.downloadURL()
-            let (metadata, url) = try await (metadataTask, urlTask)
+        for storyPrefix in result.prefixes {
+            let storyResult = try await storyPrefix.listAll()
+            let sortedItems = storyResult.items.sorted { $0.name < $1.name }
+            guard !sortedItems.isEmpty else { continue }
 
-            let prompt = metadata.customMetadata?["prompt"] ?? ""
-            let dateString = metadata.customMetadata?["createdAt"] ?? ""
+            // prompt + createdAt metadata lives on every image; read from the first
+            let firstMeta = try await sortedItems[0].getMetadata()
+            let prompt = firstMeta.customMetadata?["prompt"] ?? ""
+            let dateString = firstMeta.customMetadata?["createdAt"] ?? ""
             let date = ISO8601DateFormatter().date(from: dateString) ?? Date()
-            let id = item.name.replacingOccurrences(of: ".jpg", with: "")
 
-            stories.append(Story(id: id, prompt: prompt, imageURL: url, createdAt: date))
+            var urls: [URL] = []
+            for item in sortedItems {
+                if let url = try? await item.downloadURL() {
+                    urls.append(url)
+                }
+            }
+            guard !urls.isEmpty else { continue }
+
+            stories.append(Story(id: storyPrefix.name, prompt: prompt, imageURLs: urls, createdAt: date))
         }
 
         return stories.sorted { $0.createdAt > $1.createdAt }
