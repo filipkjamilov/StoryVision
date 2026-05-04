@@ -52,10 +52,11 @@ class SpeechRecognizer {
         }
 
         let inputNode = audioEngine.inputNode
+        #if !targetEnvironment(simulator)
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: nil) { buffer, _ in
             request.append(buffer)
         }
-
+        #endif
         audioEngine.prepare()
         try audioEngine.start()
         isRecording = true
