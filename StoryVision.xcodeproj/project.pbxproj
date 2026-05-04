@@ -12,6 +12,8 @@
 		A439A67E2FA8B19500C7B78E /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = A439A67D2FA8B19500C7B78E /* FirebaseAnalytics */; };
 		A439A6802FA8B19500C7B78E /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = A439A67F2FA8B19500C7B78E /* FirebaseCrashlytics */; };
 		A439A6822FA8B19500C7B78E /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = A439A6812FA8B19500C7B78E /* FirebaseStorage */; };
+		ABA6F8C3E7AF41D782FAEC32 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = E7876840FC3740F6A3D1C6EC /* RevenueCat */; };
+		E48E408B79C94915ACAF048B /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = 79E04688250042C98EF3E4B1 /* RevenueCatUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,6 +38,8 @@
 				A439A67A2FA8B19500C7B78E /* FirebaseAI in Frameworks */,
 				A439A6822FA8B19500C7B78E /* FirebaseStorage in Frameworks */,
 				A439A67E2FA8B19500C7B78E /* FirebaseAnalytics in Frameworks */,
+				ABA6F8C3E7AF41D782FAEC32 /* RevenueCat in Frameworks */,
+				E48E408B79C94915ACAF048B /* RevenueCatUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -83,6 +87,8 @@
 				A439A67D2FA8B19500C7B78E /* FirebaseAnalytics */,
 				A439A67F2FA8B19500C7B78E /* FirebaseCrashlytics */,
 				A439A6812FA8B19500C7B78E /* FirebaseStorage */,
+				E7876840FC3740F6A3D1C6EC /* RevenueCat */,
+				79E04688250042C98EF3E4B1 /* RevenueCatUI */,
 			);
 			productName = StoryVision;
 			productReference = A439A6562FA89B1A00C7B78E /* StoryVision.app */;
@@ -114,6 +120,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A439A6782FA8B19500C7B78E /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				E3863BAA9B3E43C4B6335CB5 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A439A6572FA89B1A00C7B78E /* Products */;
@@ -386,6 +393,14 @@
 				minimumVersion = 12.12.1;
 			};
 		};
+		E3863BAA9B3E43C4B6335CB5 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios-spm.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -413,6 +428,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A439A6782FA8B19500C7B78E /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseStorage;
+		};
+		E7876840FC3740F6A3D1C6EC /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E3863BAA9B3E43C4B6335CB5 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
+			productName = RevenueCat;
+		};
+		79E04688250042C98EF3E4B1 /* RevenueCatUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E3863BAA9B3E43C4B6335CB5 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
+			productName = RevenueCatUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
