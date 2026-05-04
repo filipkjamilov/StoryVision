@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyADoYA60fHcrf4Wzu5KdF7b7ea8EGLW6_4</string>
+	<key>GCM_SENDER_ID</key>
+	<string>808416928057</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.storyvision.StoryVision</string>
+	<key>PROJECT_ID</key>
+	<string>storyvision-996b8</string>
+	<key>STORAGE_BUCKET</key>
+	<string>storyvision-996b8.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:808416928057:ios:f14c3255ce953ab572c8e8</string>
+</dict>
+</plist>

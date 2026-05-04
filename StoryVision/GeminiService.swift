@@ -16,7 +16,7 @@ struct ImageService {
 
         let body: [String: Any] = [
             "instances": [["prompt": prompt]],
-            "parameters": ["sampleCount": 1, "aspectRatio": "1:1"]
+            "parameters": ["sampleCount": 1, "aspectRatio": "16:9"]
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 

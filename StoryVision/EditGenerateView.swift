@@ -48,7 +48,7 @@ struct EditGenerateView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(isPresented: $navigateToResult) {
             if let image = generatedImage {
-                ResultView(image: image)
+                ResultView(image: image, prompt: transcript)
             }
         }
     }
