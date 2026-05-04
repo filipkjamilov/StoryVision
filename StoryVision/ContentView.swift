@@ -1,21 +1,15 @@
-//
-//  ContentView.swift
-//  StoryVision
-//
-//  Created by Filip Kjamilov on 04.05.26.
-//
-
 import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+#if os(iOS)
+        NavigationStack {
+            RecordView()
         }
-        .padding()
+#else
+        Text("StoryVision is only available on iOS.")
+            .padding()
+#endif
     }
 }
 
