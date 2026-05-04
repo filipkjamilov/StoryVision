@@ -7,6 +7,13 @@ struct StoryDetailView: View {
     @State private var savedToPhotos = false
     @State private var showShareSheet = false
     @Environment(\.dismiss) private var dismiss
+    @Environment(SubscriptionManager.self) private var subscriptions
+
+    @State private var audioManager = AudioPlayerManager()
+    @State private var audioURL: URL?
+    @State private var isSynthesizing = false
+    @State private var audioError: String?
+    @State private var showSubscriptions = false
 
     private var currentURL: URL? { story.imageURLs[safe: selectedIndex] }
 
@@ -28,6 +35,15 @@ struct StoryDetailView: View {
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.35))
                         .padding(.top, 6)
+                }
+
+                if let audioError {
+                    Text(audioError)
+                        .font(.caption)
+                        .foregroundStyle(Color(hex: "F87171"))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
@@ -69,6 +85,11 @@ struct StoryDetailView: View {
         .sheet(isPresented: $showShareSheet) {
             if let url = currentURL { ShareSheet(items: [url]) }
         }
+        .sheet(isPresented: $showSubscriptions) {
+            SubscriptionStoreView()
+        }
+        .onAppear { audioURL = story.audioURL }
+        .onDisappear { audioManager.stop() }
     }
 
     // MARK: - Image carousel
@@ -107,9 +128,34 @@ struct StoryDetailView: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: story.imageURLs.count > 1 ? .always : .never))
-            .frame(height: imageHeight + 28) // +28 for page dots
+            .frame(height: imageHeight + 28)
+            .overlay(alignment: .bottomTrailing) {
+                playButton
+                    .padding(.trailing, 28)
+                    .padding(.bottom, 36)
+            }
         }
         .frame(height: (UIScreen.main.bounds.width - 32) * 9.0 / 16.0 + 28)
+    }
+
+    private var playButton: some View {
+        Button { handlePlayTap() } label: {
+            ZStack {
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 52, height: 52)
+                    .shadow(color: .black.opacity(0.4), radius: 8)
+
+                if isSynthesizing {
+                    ProgressView().tint(.white).scaleEffect(0.8)
+                } else {
+                    Image(systemName: audioManager.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(.white)
+                }
+            }
+        }
+        .disabled(isSynthesizing)
     }
 
     // MARK: - Action bar
@@ -147,6 +193,52 @@ struct StoryDetailView: View {
         .padding(24)
     }
 
+    // MARK: - Audio
+
+    private func handlePlayTap() {
+        guard subscriptions.hasProAccess else {
+            showSubscriptions = true
+            return
+        }
+        if audioManager.isPlaying {
+            audioManager.pause()
+            return
+        }
+        Task {
+            if let url = audioURL {
+                isSynthesizing = true
+                if let (data, _) = try? await URLSession.shared.data(from: url) {
+                    audioManager.play(data: data)
+                }
+                isSynthesizing = false
+            } else {
+                await synthesizeAndCache()
+            }
+        }
+    }
+
+    private func synthesizeAndCache() async {
+        let voiceID = UserDefaults.standard.string(forKey: "selectedVoiceID") ?? ""
+        guard !voiceID.isEmpty else {
+            audioError = "No voice selected. Open Settings to choose a voice."
+            return
+        }
+        isSynthesizing = true
+        audioError = nil
+        do {
+            let data = try await ElevenLabsService.synthesize(text: story.prompt, voiceID: voiceID)
+            let url = try await StorageService.uploadAudio(data: data, storyID: story.id)
+            try await StorageService.updateAudioURL(url, forStoryID: story.id)
+            audioURL = url
+            audioManager.play(data: data)
+        } catch {
+            audioError = error.localizedDescription
+        }
+        isSynthesizing = false
+    }
+
+    // MARK: - Save to Photos
+
     private func saveCurrentImage() async {
         guard let url = currentURL,
               let (data, _) = try? await URLSession.shared.data(from: url),
@@ -175,7 +267,9 @@ private extension Array {
             URL(string: "https://picsum.photos/seed/b/800/450")!,
             URL(string: "https://picsum.photos/seed/c/800/450")!
         ],
+        audioURL: nil,
         createdAt: Date()
     ))
+    .environment(SubscriptionManager())
 }
 #endif

@@ -12,6 +12,8 @@ struct StorageService {
         Storage.storage().reference().child("stories/\(deviceID)")
     }
 
+    // MARK: - Images
+
     // Upload one image as part of a story. index determines sort order (00, 01, …).
     static func uploadImage(
         image: UIImage,
@@ -38,6 +40,28 @@ struct StorageService {
         return try await ref.downloadURL()
     }
 
+    // MARK: - Audio
+
+    static func uploadAudio(data: Data, storyID: String) async throws -> URL {
+        let ref = storiesRef.child("\(storyID).mp3")
+
+        let metadata = StorageMetadata()
+        metadata.contentType = "audio/mpeg"
+
+        _ = try await ref.putDataAsync(data, metadata: metadata)
+        return try await ref.downloadURL()
+    }
+
+    // Stores the audio URL in the metadata of the story's first image.
+    static func updateAudioURL(_ audioURL: URL, forStoryID storyID: String) async throws {
+        let ref = storiesRef.child("\(storyID)/00.jpg")
+        let metadata = StorageMetadata()
+        metadata.customMetadata = ["audioURL": audioURL.absoluteString]
+        _ = try await ref.updateMetadata(metadata)
+    }
+
+    // MARK: - Fetch
+
     static func fetchAllStories() async throws -> [Story] {
         let result = try await storiesRef.listAll()
 
@@ -47,11 +71,12 @@ struct StorageService {
             let sortedItems = storyResult.items.sorted { $0.name < $1.name }
             guard !sortedItems.isEmpty else { continue }
 
-            // prompt + createdAt metadata lives on every image; read from the first
+            // prompt, createdAt, and audioURL are all stored on the first image's metadata
             let firstMeta = try await sortedItems[0].getMetadata()
             let prompt = firstMeta.customMetadata?["prompt"] ?? ""
             let dateString = firstMeta.customMetadata?["createdAt"] ?? ""
             let date = ISO8601DateFormatter().date(from: dateString) ?? Date()
+            let audioURL = firstMeta.customMetadata?["audioURL"].flatMap { URL(string: $0) }
 
             var urls: [URL] = []
             for item in sortedItems {
@@ -61,7 +86,7 @@ struct StorageService {
             }
             guard !urls.isEmpty else { continue }
 
-            stories.append(Story(id: storyPrefix.name, prompt: prompt, imageURLs: urls, createdAt: date))
+            stories.append(Story(id: storyPrefix.name, prompt: prompt, imageURLs: urls, audioURL: audioURL, createdAt: date))
         }
 
         return stories.sorted { $0.createdAt > $1.createdAt }

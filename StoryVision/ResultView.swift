@@ -5,24 +5,37 @@ struct ResultView: View {
     let image: UIImage
     let prompt: String
 
+    @Environment(SubscriptionManager.self) private var subscriptions
+
     @State private var savedToPhotos = false
     @State private var showShareSheet = false
     @State private var uploadState: UploadState = .uploading
+    @State private var showSubscriptions = false
+
+    // Audio
+    @State private var audioManager = AudioPlayerManager()
+    @State private var uploadedStory: Story?
+    @State private var audioURL: URL?
+    @State private var isSynthesizing = false
+    @State private var audioError: String?
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
+                imageWithPlayButton
 
                 uploadBanner
+
+                if let audioError {
+                    Text(audioError)
+                        .font(.caption)
+                        .foregroundStyle(Color(hex: "F87171"))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                }
 
                 actionBar
             }
@@ -32,8 +45,52 @@ struct ResultView: View {
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(items: [image])
         }
+        .sheet(isPresented: $showSubscriptions) {
+            SubscriptionStoreView()
+        }
         .task { await uploadToFirebase() }
+        .onDisappear { audioManager.stop() }
     }
+
+    // MARK: - Image + floating play button
+
+    private var imageWithPlayButton: some View {
+        Image(uiImage: image)
+            .resizable()
+            .scaledToFit()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .overlay(alignment: .bottomTrailing) {
+                playButton
+                    .padding(.trailing, 28)
+                    .padding(.bottom, 12)
+            }
+    }
+
+    private var playButton: some View {
+        Button { handlePlayTap() } label: {
+            ZStack {
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 52, height: 52)
+                    .shadow(color: .black.opacity(0.4), radius: 8)
+
+                if isSynthesizing {
+                    ProgressView().tint(.white).scaleEffect(0.8)
+                } else {
+                    Image(systemName: audioManager.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(.white)
+                }
+            }
+        }
+        .disabled(isSynthesizing || uploadedStory == nil)
+        .opacity(uploadedStory == nil ? 0.4 : 1)
+    }
+
+    // MARK: - Upload banner
 
     @ViewBuilder
     private var uploadBanner: some View {
@@ -99,15 +156,65 @@ struct ResultView: View {
         .padding(24)
     }
 
+    // MARK: - Audio
+
+    private func handlePlayTap() {
+        guard subscriptions.hasProAccess else {
+            showSubscriptions = true
+            return
+        }
+        if audioManager.isPlaying {
+            audioManager.pause()
+            return
+        }
+        guard let story = uploadedStory else { return }
+        Task {
+            if let url = audioURL {
+                isSynthesizing = true
+                if let (data, _) = try? await URLSession.shared.data(from: url) {
+                    audioManager.play(data: data)
+                }
+                isSynthesizing = false
+            } else {
+                await synthesizeAndCache(storyID: story.id)
+            }
+        }
+    }
+
+    private func synthesizeAndCache(storyID: String) async {
+        let voiceID = UserDefaults.standard.string(forKey: "selectedVoiceID") ?? ""
+        guard !voiceID.isEmpty else {
+            audioError = "No voice selected. Open Settings to choose a voice."
+            return
+        }
+        isSynthesizing = true
+        audioError = nil
+        do {
+            let data = try await ElevenLabsService.synthesize(text: prompt, voiceID: voiceID)
+            let url = try await StorageService.uploadAudio(data: data, storyID: storyID)
+            try await StorageService.updateAudioURL(url, forStoryID: storyID)
+            audioURL = url
+            audioManager.play(data: data)
+        } catch {
+            audioError = error.localizedDescription
+        }
+        isSynthesizing = false
+    }
+
+    // MARK: - Firebase upload
+
     private func uploadToFirebase() async {
         do {
+            let storyID = UUID().uuidString
+            let createdAt = Date()
             _ = try await StorageService.uploadImage(
                 image: image,
-                storyID: UUID().uuidString,
+                storyID: storyID,
                 prompt: prompt,
-                storyCreatedAt: Date(),
+                storyCreatedAt: createdAt,
                 index: 0
             )
+            uploadedStory = Story(id: storyID, prompt: prompt, imageURLs: [], audioURL: nil, createdAt: createdAt)
             withAnimation { uploadState = .done }
         } catch {
             withAnimation { uploadState = .failed }
@@ -129,5 +236,6 @@ struct ShareSheet: UIViewControllerRepresentable {
     NavigationStack {
         ResultView(image: UIImage(systemName: "photo")!, prompt: "A bear meets two travellers.")
     }
+    .environment(SubscriptionManager())
 }
 #endif

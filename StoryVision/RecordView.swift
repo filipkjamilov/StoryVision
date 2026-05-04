@@ -545,7 +545,7 @@ struct StoryResultSheet: View {
             }
         }
         if !urls.isEmpty {
-            let story = Story(id: storyID, prompt: prompt, imageURLs: urls, createdAt: createdAt)
+            let story = Story(id: storyID, prompt: prompt, imageURLs: urls, audioURL: nil, createdAt: createdAt)
             withAnimation { uploadState = .done }
             onStorySaved(story)
         } else {
