@@ -276,7 +276,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = G8BK3J8MA8;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -322,7 +322,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = G8BK3J8MA8;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -404,6 +404,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		79E04688250042C98EF3E4B1 /* RevenueCatUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E3863BAA9B3E43C4B6335CB5 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
+			productName = RevenueCatUI;
+		};
 		A439A6792FA8B19500C7B78E /* FirebaseAI */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A439A6782FA8B19500C7B78E /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
@@ -433,11 +438,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E3863BAA9B3E43C4B6335CB5 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
 			productName = RevenueCat;
-		};
-		79E04688250042C98EF3E4B1 /* RevenueCatUI */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E3863BAA9B3E43C4B6335CB5 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
-			productName = RevenueCatUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

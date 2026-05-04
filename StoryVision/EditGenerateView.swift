@@ -2,14 +2,11 @@ import SwiftUI
 
 #if canImport(UIKit)
 struct EditGenerateView: View {
-    @Environment(SubscriptionManager.self) private var subscriptions
-
     @State var transcript: String
     @State private var generatedImage: UIImage?
     @State private var isGenerating = false
     @State private var errorMessage: String?
     @State private var navigateToResult = false
-    @State private var showSubscriptions = false
 
     init(transcript: String, previewImage: UIImage? = nil) {
         _transcript = State(initialValue: transcript)
@@ -62,9 +59,6 @@ struct EditGenerateView: View {
             if let image = generatedImage {
                 ResultView(image: image, prompt: transcript)
             }
-        }
-        .sheet(isPresented: $showSubscriptions) {
-            SubscriptionStoreView()
         }
     }
 
@@ -131,11 +125,6 @@ struct EditGenerateView: View {
     }
 
     private func generateImage() {
-        guard subscriptions.hasProAccess else {
-            showSubscriptions = true
-            return
-        }
-
         isGenerating = true
         errorMessage = nil
         Task {

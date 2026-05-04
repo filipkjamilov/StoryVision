@@ -2,10 +2,13 @@ import SwiftUI
 
 #if os(iOS)
 struct RecordView: View {
+    @Environment(SubscriptionManager.self) private var subscriptions
+
     @State private var recognizer = SpeechRecognizer()
     @State private var navigateToEdit = false
     @State private var pulseScale: CGFloat = 1.0
     @State private var recentStories: [Story] = []
+    @State private var showSubscriptions = false
 
     // Live image generation
     @State private var liveImage: UIImage?
@@ -53,6 +56,9 @@ struct RecordView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Please enable microphone and speech recognition in Settings.")
+        }
+        .sheet(isPresented: $showSubscriptions) {
+            SubscriptionStoreView()
         }
     }
 
@@ -222,11 +228,23 @@ struct RecordView: View {
                 navigateToEdit = true
             }
         } else {
-            recognizer.transcript = ""
-            liveImage = nil
-            imageOpacity = 0
-            try? recognizer.startRecording()
+            Task { await startRecordingIfAllowed() }
         }
+    }
+
+    private func startRecordingIfAllowed() async {
+        if !subscriptions.hasProAccess {
+            await loadRecentStories()
+            guard recentStories.isEmpty else {
+                showSubscriptions = true
+                return
+            }
+        }
+
+        recognizer.transcript = ""
+        liveImage = nil
+        imageOpacity = 0
+        try? recognizer.startRecording()
     }
 
     private func loadRecentStories() async {
