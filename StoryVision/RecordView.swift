@@ -10,8 +10,6 @@ struct RecordView: View {
     // Live image generation
     @State private var liveImage: UIImage?
     @State private var imageOpacity: Double = 0
-    @State private var nextGenerationThreshold = 100
-    @State private var activeGenerationTask: Task<Void, Never>?
 
     var body: some View {
         ScrollView {
@@ -35,8 +33,12 @@ struct RecordView: View {
             #endif
         }
         .task { await loadRecentStories() }
-        .onChange(of: recognizer.transcript) { _, newValue in
-            scheduleGeneration(for: newValue)
+        .task(id: recognizer.transcript.count / 100) {
+            let bucket = recognizer.transcript.count / 100
+            let prompt = recognizer.transcript
+            guard bucket > 0, !prompt.isEmpty else { return }
+            guard let image = try? await ImageService.generateImage(from: prompt) else { return }
+            revealImage(image)
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(isPresented: $navigateToEdit) {
@@ -81,8 +83,9 @@ struct RecordView: View {
                 Image(uiImage: liveImage)
                     .resizable()
                     .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
                     .opacity(imageOpacity)
-                    .transition(.opacity)
             }
 
             // Scrim so mic button stays readable over the image
@@ -201,34 +204,19 @@ struct RecordView: View {
 
     // MARK: - Live image generation
 
-    private func scheduleGeneration(for transcript: String) {
-        guard transcript.count >= nextGenerationThreshold else { return }
-        nextGenerationThreshold = ((transcript.count / 100) + 1) * 100
-
-        activeGenerationTask?.cancel()
-        activeGenerationTask = Task {
-            guard let image = try? await ImageService.generateImage(from: transcript),
-                  !Task.isCancelled else { return }
-            await revealImage(image)
+    private func revealImage(_ image: UIImage) {
+        withAnimation(.easeOut(duration: 0.3)) { imageOpacity = 0 }
+        // Swap image after fade-out, then fade in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            liveImage = image
+            withAnimation(.easeIn(duration: 1.5)) { imageOpacity = 1 }
         }
-    }
-
-    @MainActor
-    private func revealImage(_ image: UIImage) async {
-        if liveImage != nil {
-            withAnimation(.easeOut(duration: 0.4)) { imageOpacity = 0 }
-            try? await Task.sleep(for: .milliseconds(450))
-            guard !Task.isCancelled else { return }
-        }
-        liveImage = image
-        withAnimation(.easeIn(duration: 1.5)) { imageOpacity = 1 }
     }
 
     // MARK: - Helpers
 
     private func toggleRecording() {
         if recognizer.isRecording {
-            activeGenerationTask?.cancel()
             recognizer.stopRecording()
             if !recognizer.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 navigateToEdit = true
@@ -237,7 +225,6 @@ struct RecordView: View {
             recognizer.transcript = ""
             liveImage = nil
             imageOpacity = 0
-            nextGenerationThreshold = 100
             try? recognizer.startRecording()
         }
     }
