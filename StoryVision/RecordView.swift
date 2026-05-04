@@ -1,4 +1,5 @@
 import SwiftUI
+import RevenueCatUI
 
 #if os(iOS)
 struct RecordView: View {
@@ -9,7 +10,7 @@ struct RecordView: View {
     @State private var selectedStory: Story?
     @State private var pulseScale: CGFloat = 1.0
     @State private var recentStories: [Story] = []
-    @State private var showSubscriptions = false
+    @State private var showRevenueCatPaywall = false
     @State private var listeningPulse = false
 
     @State private var liveImages: [UIImage] = []
@@ -73,8 +74,13 @@ struct RecordView: View {
         } message: {
             Text("Please enable microphone and speech recognition in Settings.")
         }
-        .sheet(isPresented: $showSubscriptions) {
-            SubscriptionStoreView()
+        .sheet(isPresented: $showRevenueCatPaywall, onDismiss: {
+            Task {
+                await subscriptions.refreshCustomerInfo()
+                await loadRecentStories()
+            }
+        }) {
+            PaywallView()
         }
     }
 
@@ -320,8 +326,8 @@ struct RecordView: View {
     private func startRecordingIfAllowed() async {
         if !subscriptions.hasProAccess {
             await loadRecentStories()
-            guard recentStories.isEmpty else {
-                showSubscriptions = true
+            guard canCreateFreeStory else {
+                showRevenueCatPaywall = true
                 return
             }
         }
@@ -341,6 +347,10 @@ struct RecordView: View {
         imageOpacity = 0
         isOverlayVisible = false
         recognizer.transcript = ""
+    }
+
+    private var canCreateFreeStory: Bool {
+        recentStories.isEmpty
     }
 
     private func loadRecentStories() async {
