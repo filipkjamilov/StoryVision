@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s \"https://generativelanguage.googleapis.com/v1beta/models?key=AIzaSyDCvP7p0XzVomyMfYp1FB56o99FtrACnDs\")",
+      "Bash(python3 -c \"import json,sys; models = json.load\\(sys.stdin\\).get\\('models',[]\\); [print\\(m['name'], '-', m.get\\('supportedGenerationMethods',''\\)\\) for m in models]\")"
+    ]
+  }
+}
