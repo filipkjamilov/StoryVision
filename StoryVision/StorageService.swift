@@ -30,14 +30,38 @@ struct StorageService {
         _ = try await ref.putDataAsync(data, metadata: metadata)
         let url = try await ref.downloadURL()
 
-        return Story(id: id, prompt: prompt, imageURL: url, createdAt: Date())
+        return Story(id: id, prompt: prompt, imageURL: url, audioURL: nil, createdAt: Date())
     }
+
+    // MARK: - Audio
+
+    static func uploadAudio(data: Data, storyID: String) async throws -> URL {
+        let ref = storiesRef.child("\(storyID).mp3")
+
+        let metadata = StorageMetadata()
+        metadata.contentType = "audio/mpeg"
+
+        _ = try await ref.putDataAsync(data, metadata: metadata)
+        return try await ref.downloadURL()
+    }
+
+    static func updateAudioURL(_ audioURL: URL, forStoryID storyID: String) async throws {
+        let ref = storiesRef.child("\(storyID).jpg")
+        let metadata = StorageMetadata()
+        metadata.customMetadata = ["audioURL": audioURL.absoluteString]
+        _ = try await ref.updateMetadata(metadata)
+    }
+
+    // MARK: - Fetch
 
     static func fetchAllStories() async throws -> [Story] {
         let result = try await storiesRef.listAll()
 
+        // Only process image files; audio files are resolved via metadata
+        let imageItems = result.items.filter { $0.name.hasSuffix(".jpg") }
+
         var stories: [Story] = []
-        for item in result.items {
+        for item in imageItems {
             async let metadataTask = item.getMetadata()
             async let urlTask = item.downloadURL()
             let (metadata, url) = try await (metadataTask, urlTask)
@@ -47,7 +71,10 @@ struct StorageService {
             let date = ISO8601DateFormatter().date(from: dateString) ?? Date()
             let id = item.name.replacingOccurrences(of: ".jpg", with: "")
 
-            stories.append(Story(id: id, prompt: prompt, imageURL: url, createdAt: date))
+            let audioURLString = metadata.customMetadata?["audioURL"]
+            let audioURL = audioURLString.flatMap { URL(string: $0) }
+
+            stories.append(Story(id: id, prompt: prompt, imageURL: url, audioURL: audioURL, createdAt: date))
         }
 
         return stories.sorted { $0.createdAt > $1.createdAt }
